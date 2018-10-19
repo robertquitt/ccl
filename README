@@ -5,3 +5,5 @@ Connected-component labelling.
 ccl takes in a graph file, which is a list of edges.
 
 It returns a mapping from vertices to partitions.
+
+Needs OpenMPI to compile/run: install libopenmpi-dev on debian/ubuntu
