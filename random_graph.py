@@ -6,13 +6,7 @@ from itertools import combinations
 def random_graph(n, p, shuffle=False):
     random.seed(1)
     edges = 0
-    iterator = combinations(range(n), 2)
-
-    if shuffle:
-        iterator = list(iterator)
-        random.shuffle(iterator)
-
-    for a, b in iterator:
+    for a, b in combinations(range(n), 2):
         if random.random() < p:
             print(a, b)
             edges += 1
