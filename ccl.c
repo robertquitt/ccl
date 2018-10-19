@@ -16,11 +16,6 @@ static edge_t edges[MAX_EDGES];
 static size_t num_vertices;
 static size_t num_edges;
 
-void run_labelprop();
-void load_graph();
-size_t count_partitions();
-void print_labels();
-
 void main(int argc, char *argv[]) {
 	MPI_Init(&argc, &argv);
 

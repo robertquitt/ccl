@@ -3,7 +3,7 @@ import argparse
 import random
 from itertools import combinations
 
-def random_graph(n, p, shuffle=False):
+def random_graph(n, p):
     random.seed(1)
     edges = 0
     for a, b in combinations(range(n), 2):
@@ -18,7 +18,6 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('n')
     parser.add_argument('p')
-    parser.add_argument('--shuffle', action='store_true')
     args = parser.parse_args()
     n = int(args.n)
     p = float(args.p)
@@ -27,7 +26,7 @@ def main():
     assert 0 <= p <= 1
 
     print(n)
-    random_graph(n, p, shuffle=args.shuffle)
+    random_graph(n, p)
 
 if __name__ == '__main__':
     main()
