@@ -1,0 +1,7 @@
+Simple CCL
+
+Connected-component labelling.
+
+ccl takes in a graph file, which is a list of edges.
+
+It returns a mapping from vertices to partitions.
