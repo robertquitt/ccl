@@ -1,6 +1,7 @@
 #include<stdint.h>
 #include<stdio.h>
 #include "mpi.h"
+#include "ccl.h"
 
 #define MAX_EDGES 1024
 #define MAX_VERTICES 1024
@@ -15,8 +16,10 @@ static edge_t edges[MAX_EDGES];
 static size_t num_vertices;
 static size_t num_edges;
 
-void label_graph();
+void run_labelprop();
 void load_graph();
+size_t count_partitions();
+void print_labels();
 
 void main(int argc, char *argv[]) {
 	MPI_Init(&argc, &argv);
@@ -28,28 +31,40 @@ void main(int argc, char *argv[]) {
 		labels[i] = i;
 	}
 
-	label_graph();
+	run_labelprop();
 
-	size_t num_partitions = 0;
+	size_t num_partitions = count_partitions();
 
-	for (i = 0; i < num_vertices; i++) {
-		printf("labels[%zu] = %lu\n", i, labels[i]);
-		if (labels[i] == i) {
-			num_partitions++;
-		}
-	}
+	print_labels();
 
 	printf("Number of partitions: %zu\n", num_partitions);
-
 
 	MPI_Finalize();
 }
 
-void label_graph() {
+void run_labelprop() {
 	size_t i;
 	for (i = 0; i < num_edges; i++) {
 		edge_t e = edges[i];
 		labels[e.to] = labels[e.from];
+	}
+}
+
+size_t count_partitions() {
+	size_t num_partitions = 0;
+	size_t i;
+	for (i = 0; i < num_vertices; i++) {
+		if (labels[i] == i) {
+			num_partitions++;
+		}
+	}
+	return num_partitions;
+}
+
+void print_labels() {
+	size_t i;
+	for (i = 0; i < num_vertices; i++) {
+		printf("labels[%zu] = %lu\n", i, labels[i]);
 	}
 }
 
