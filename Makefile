@@ -39,4 +39,4 @@ n100p0.1.shuf.txt: n100p0.1.txt
 	tail -n +2 $< | shuf >> $@
 
 clean:
-	rm -f k10.txt n10p0.1.txt n100p0.1.txt n100p0.1s.txt ccl
+	rm -f k10.txt n10p0.1.txt n100p0.1.txt n100p0.1s.txt n100p0.1.shuf.txt ccl

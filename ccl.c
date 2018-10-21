@@ -37,7 +37,7 @@ static inline int rtov_lower(int rank) {
 
 
 void main(int argc, char *argv[]) {
-    split_edges = false;
+    split_edges = true;
     if (argc != 2) {
         fprintf(stderr, "Usage: %s <graphfile>\n", argv[0]);
         return;
@@ -92,6 +92,7 @@ void run_async_labelprop() {
 
         if (rfrom != world_rank) {
             // from vertex is on other processor, skip
+            labels[e.to] = e.from;
             continue;
         } else if (rto != world_rank) {
             // write to other processor
@@ -99,7 +100,7 @@ void run_async_labelprop() {
             MPI_Isend(&e, 1, mpi_edge_t, rto, 0, MPI_COMM_WORLD, &send_request);
         } else {
             // edge touches two vertices in this rank
-            labels[e.to] = labels[e.from];
+            labels[e.to] = e.from;
         }
         edge_t edge_recv;
         int num_recved;
