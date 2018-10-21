@@ -12,6 +12,8 @@ typedef struct edge {
     uint64_t to;
 } edge_t;
 
+MPI_Datatype mpi_edge_t;
+
 static uint64_t labels[MAX_VERTICES];
 static edge_t edges[MAX_EDGES];
 static size_t num_vertices;
@@ -20,8 +22,9 @@ static bool split_edges;
 static int world_rank;
 static int world_size;
 
+
 static inline int vtor(int vertex_idx) {
-    return (vertex_idx + 1) * world_size / num_vertices;
+    return (vertex_idx) * world_size / num_vertices;
 }
 
 static inline int rtov_upper(int rank) {
@@ -34,15 +37,26 @@ static inline int rtov_lower(int rank) {
 
 
 void main(int argc, char *argv[]) {
-    MPI_Init(&argc, &argv);
     split_edges = false;
     if (argc != 2) {
         fprintf(stderr, "Usage: %s <graphfile>\n", argv[0]);
         return;
     }
 
+    MPI_Init(&argc, &argv);
+
     MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
     MPI_Comm_size(MPI_COMM_WORLD, &world_size);
+
+    const int nitems = 2;
+    int blocklengths[2] = {1, 1};
+    MPI_Datatype types[2] = {MPI_UNSIGNED_LONG, MPI_UNSIGNED_LONG};
+    MPI_Aint offsets[2];
+    offsets[0] = 0;
+    // hack, but it works
+    offsets[1] = sizeof(((edge_t *) 0)->from);
+    MPI_Type_create_struct(nitems, blocklengths, offsets, types, &mpi_edge_t);
+    MPI_Type_commit(&mpi_edge_t);
 
     load_graph(argv[1]);
 
@@ -59,7 +73,7 @@ void main(int argc, char *argv[]) {
 
     print_labels();
 
-    printf("Number of partitions: %zu\n", num_partitions);
+    printf("%i: number of partitions: %zu\n", world_rank, num_partitions);
 
     MPI_Finalize();
 }
@@ -69,6 +83,7 @@ void run_async_labelprop() {
     for (i = rtov_lower(world_rank); i < rtov_upper(world_rank); i++) {
         labels[i] = i;
     }
+
     for (i = 0; i < num_edges; i++) {
         edge_t e = edges[i];
 
@@ -80,11 +95,43 @@ void run_async_labelprop() {
             continue;
         } else if (rto != world_rank) {
             // write to other processor
-            printf("%lu %lu\n", e.to, e.from);
+            MPI_Request send_request;
+            MPI_Isend(&e, 1, mpi_edge_t, rto, 0, MPI_COMM_WORLD, &send_request);
         } else {
+            // edge touches two vertices in this rank
             labels[e.to] = labels[e.from];
         }
+        edge_t edge_recv;
+        int num_recved;
+        int flag;
+        MPI_Status stat;
+
+        MPI_Iprobe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &flag, &stat);
+
+        while (flag) {
+            MPI_Recv(&edge_recv, 1, mpi_edge_t, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &stat);
+            printf("%i: %lu -> %lu\n", world_rank, edge_recv.from, edge_recv.to);
+            labels[edge_recv.to] = edge_recv.from;
+            MPI_Iprobe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &flag, &stat);
+        }
     }
+
+    MPI_Barrier(MPI_COMM_WORLD);
+
+    edge_t edge_recv;
+    int num_recved;
+    int flag;
+    MPI_Status stat;
+    MPI_Iprobe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &flag, &stat);
+
+    while (flag) {
+        MPI_Recv(&edge_recv, 1, mpi_edge_t, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &stat);
+        printf("%i: %lu -> %lu\n", world_rank, edge_recv.from, edge_recv.to);
+        labels[edge_recv.to] = edge_recv.from;
+        MPI_Iprobe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &flag, &stat);
+    }
+
+    MPI_Barrier(MPI_COMM_WORLD);
 }
 
 void run_labelprop() {
@@ -101,7 +148,7 @@ void run_labelprop() {
 size_t count_partitions() {
     size_t num_partitions = 0;
     size_t i;
-    for (i = 0; i < num_vertices; i++) {
+    for (i = rtov_lower(world_rank); i < rtov_upper(world_rank); i++) {
         if (labels[i] == i) {
             num_partitions++;
         }
@@ -111,8 +158,8 @@ size_t count_partitions() {
 
 void print_labels() {
     size_t i;
-    for (i = 0; i < num_vertices; i++) {
-        printf("labels[%zu] = %lu\n", i, labels[i]);
+    for (i = rtov_lower(world_rank); i < rtov_upper(world_rank); i++) {
+        printf("%i: labels[%zu] = %lu\n", world_rank, i, labels[i]);
     }
 }
 

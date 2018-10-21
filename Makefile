@@ -21,6 +21,9 @@ run3: ccl n100p0.1.shuf.txt
 run4: ccl n10p0.1.txt
 	$(MPIRUN) $(CCL) $(word 2,$^)
 
+run5: ccl n100p0.1.shuf.txt
+	$(MPIRUN) $(CCL) $(word 2,$^)
+
 
 k10.txt: random_graph.py
 	python3 random_graph.py 10 1 > $@
