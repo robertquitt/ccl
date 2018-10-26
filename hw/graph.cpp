@@ -1,38 +1,10 @@
-#include<stdint.h>
-#include<stdio.h>
-#include<stdbool.h>
-#include "hls_stream.h"
-#include "ap_int.h"
-
-#define MAX_EDGES 1024
-#define MAX_VERTICES 1024
-
-//
+#include "graph.h"
 //1. All edges point to me
 //2. 4 parts of vertices
 //	a. myself-myself
 //	b. send the data from the proc2/proc3/proc4 to me
 //	c. process the lables
 //
-
-typedef struct edge {
-    uint64_t from;
-    uint64_t to;
-} edge_t;
-
-typedef struct info {
-	uint64_t to;
-	uint64_t label;
-} info_t;
-
-typedef struct ctrl {
-	ap_uint<1> done; // input from CPU
-	ap_uint<1> converged;
-	ap_uint<1> output_valid;
-	ap_uint<1> input_valid;
-	size_t output_size;
-	size_t input_size;
-} ctrl_t;
 
 
 //static uint64_t labels[MAX_VERTICES];
@@ -57,7 +29,7 @@ static inline int rtov_lower(int rank, int world_size, int num_vertices) {
 // ctrl[1] -> accel input valid signal
 // output_size -> largest buffer size, but we are not using it
 
-void top (ctrl_t* ctrl, edge* edges, info_t* input, info_t* output, ap_uint<64>* labels,
+void top (ctrl_t* ctrl, edge_t* edges, info_t* input, info_t* output, ap_uint<64>* labels,
 		int world_rank, int world_size, int num_edges, int num_vertices) {
 #pragma HLS INTERFACE s_axilite port=return bundle=control
 #pragma HLS INTERFACE s_axilite port=edges bundle=control
@@ -123,6 +95,7 @@ while (1){
     }
 
     // data_send is set to valid
+    // TODO Uncomment this
     ctrl->output_valid = 1;
     ctrl->output_size = count;
     count = 0;
