@@ -8,7 +8,7 @@
 
 //static uint64_t labels[MAX_VERTICES];
 //static ap_uint<1> label_update[MAX_VERTICES];
-// Returns processor # 
+// Returns processor #
 static inline int vtor(int vertex_idx, int world_size, int num_vertices) {
 	return (vertex_idx) * world_size / num_vertices;
 }
@@ -54,19 +54,18 @@ void top(ctrl_t* ctrl, edge_t* edges, info_t* input, info_t* output,
 
 	int offset = rtov_lower(world_rank, world_size, num_vertices);
 	// Initialize labels a
-//    ap_uint<1> label_updates[MAX_VERTICES];
-	for (size_t i = offset;
-			i < rtov_upper(world_rank, world_size, num_vertices); i++) {
-//#pragma HLS UNROLL factor=16
+	//    ap_uint<1> label_updates[MAX_VERTICES];
+	for (size_t i = offset; i < rtov_upper(world_rank, world_size, num_vertices); i++) {
+		//#pragma HLS UNROLL factor=16
 		local_labels[i - offset] = i;
-//    	label_updates[i-offset] = 1;
+		//    	label_updates[i-offset] = 1;
 	}
 
 	while (1) {
 
 		int count = 0;
 		for (size_t i = 0; i < num_edges; i++) {
-//#pragma HLS UNROLL factor=16
+			//#pragma HLS UNROLL factor=16
 			edge_t e = edges[i];
 
 			int rto = vtor(e.to, world_size, num_vertices);
@@ -78,19 +77,19 @@ void top(ctrl_t* ctrl, edge_t* edges, info_t* input, info_t* output,
 				//MPI_Request send_request;
 				//MPI_Isend(&e, 1, mpi_edge_t, rto, 0, MPI_COMM_WORLD, &send_request);
 
-//    	   if (label_updates[e.from-offset] == 1) {
+				//    	   if (label_updates[e.from-offset] == 1) {
 				info_t info;
 				info.to = e.to;
 				info.label = local_labels[e.from - offset];
 				output[count++] = info; // destination vertex + label of rfrom if we have more than 2 processors, we need to have more buffers
-//    		   label_updates[e.from-offset] = 0;
-//    	   }
+				//    		   label_updates[e.from-offset] = 0;
+				//    	   }
 			} else {
 				// edge touches two vertices in this rank
 				if (local_labels[e.from - offset]
 						< local_labels[e.to - offset]) {
 					local_labels[e.to - offset] = local_labels[e.from - offset];
-//        		label_updates[e.to - offset] = 1;
+					//        		label_updates[e.to - offset] = 1;
 					converged = 0;
 				}
 			}
@@ -113,7 +112,7 @@ void top(ctrl_t* ctrl, edge_t* edges, info_t* input, info_t* output,
 			info_t in = input[i];
 			if (local_labels[in.to - offset] != in.label) {
 				local_labels[in.to - offset] = in.label;
-//    		label_updates[in.to - offset] = 1;
+				//    		label_updates[in.to - offset] = 1;
 				converged = 0;
 			}
 		}
@@ -128,8 +127,7 @@ void top(ctrl_t* ctrl, edge_t* edges, info_t* input, info_t* output,
 		converged = 1;
 
 		if (ctrl->done) {
-			for (size_t i = offset;
-					i < rtov_upper(world_rank, world_size, num_vertices); i++) {
+			for (size_t i = offset; i < rtov_upper(world_rank, world_size, num_vertices); i++) {
 #pragma HLS UNROLL factor=16
 				labels[i] = local_labels[i - offset];
 			}
