@@ -48,18 +48,20 @@ void top(ctrl_t* ctrl, edge_t* edges, info_t* input, info_t* output,
 #pragma HLS INTERFACE s_axilite port=num_edges bundle=control
 #pragma HLS INTERFACE s_axilite port=num_vertices bundle=control
 
+	printf("top %i\n", world_rank);
 	ap_uint<1> converged = 1;
 	ap_uint<64> local_labels[MAX_VERTICES];
 	//#pragma HLS ARRAY_PARTITION variable=local_labels complete dim=0
 
 	int offset = rtov_lower(world_rank, world_size, num_vertices);
-	// Initialize labels a
-	//    ap_uint<1> label_updates[MAX_VERTICES];
-	for (size_t i = offset; i < rtov_upper(world_rank, world_size, num_vertices); i++) {
+
+	for (size_t i = offset;
+			i < rtov_upper(world_rank, world_size, num_vertices); i++) {
 		//#pragma HLS UNROLL factor=16
 		local_labels[i - offset] = i;
-		//    	label_updates[i-offset] = 1;
 	}
+
+	printf("top initialized local_labels\n");
 
 	while (1) {
 
@@ -73,35 +75,29 @@ void top(ctrl_t* ctrl, edge_t* edges, info_t* input, info_t* output,
 			// assert(rfrom == world_rank);
 			// Make sure the rfrom is always on the current processor when we partition the workload
 			if (rto != world_rank) {
-				// write to other processor
-				//MPI_Request send_request;
-				//MPI_Isend(&e, 1, mpi_edge_t, rto, 0, MPI_COMM_WORLD, &send_request);
-
-				//    	   if (label_updates[e.from-offset] == 1) {
 				info_t info;
 				info.to = e.to;
 				info.label = local_labels[e.from - offset];
-				output[count++] = info; // destination vertex + label of rfrom if we have more than 2 processors, we need to have more buffers
-				//    		   label_updates[e.from-offset] = 0;
-				//    	   }
+				// destination vertex + label of rfrom if we have more than 2 processors, we need to have more buffers
+				output[count++] = info;
 			} else {
 				// edge touches two vertices in this rank
 				if (local_labels[e.from - offset]
 						< local_labels[e.to - offset]) {
 					local_labels[e.to - offset] = local_labels[e.from - offset];
-					//        		label_updates[e.to - offset] = 1;
 					converged = 0;
 				}
 			}
 		}
+		printf("top processed all edges\n");
 
-		// data_send is set to valid
-		// TODO Uncomment this
 		ctrl->output_valid = 1;
 		ctrl->output_size = count;
 		count = 0;
 
 		// poll to see if there is any incoming data
+
+		printf("top waiting for valid input\n");
 		while (!(ctrl->input_valid)) {
 			;
 		}
@@ -117,9 +113,13 @@ void top(ctrl_t* ctrl, edge_t* edges, info_t* input, info_t* output,
 			}
 		}
 
+		printf("top processed incoming data\n");
+
 		ctrl->input_valid = 0;
 
 		// wait till send is done on the proc end
+
+		printf("top waiting for cpu to finish");
 		while (ctrl->output_valid) {
 			;
 		}
@@ -127,7 +127,8 @@ void top(ctrl_t* ctrl, edge_t* edges, info_t* input, info_t* output,
 		converged = 1;
 
 		if (ctrl->done) {
-			for (size_t i = offset; i < rtov_upper(world_rank, world_size, num_vertices); i++) {
+			for (size_t i = offset;
+					i < rtov_upper(world_rank, world_size, num_vertices); i++) {
 #pragma HLS UNROLL factor=16
 				labels[i] = local_labels[i - offset];
 			}

@@ -4,8 +4,8 @@
 #include "hls_stream.h"
 #include "ap_int.h"
 
-#define MAX_EDGES 100000
-#define MAX_VERTICES 1024
+#define MAX_EDGES 131072
+#define MAX_VERTICES 8192
 
 typedef struct ctrl {
 	ap_uint<1> done; // input from CPU
