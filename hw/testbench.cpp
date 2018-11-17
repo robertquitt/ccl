@@ -23,21 +23,23 @@ void *top_wrapper(void *threadarg) {
 }
 
 void *cpu_sim(void *threadarg) {
-	struct thread_data *my_data;
+	struct thread_data *my_data = (struct thread_data *) threadarg;
 
 	ctrl_t *ctrl = my_data->ctrl;
+	int i = 0;
 	while (1) {
-		printf("CPU waiting for output from top\n");
+		// wait for fpga to have data ready to send
 		while (!ctrl->output_valid) {
 			;
 		}
-		printf("CPU output size: %zu\n", ctrl->output_size);
-		ctrl->input_valid = 1;
-		while (ctrl->input_valid) {
-			;
+
+		if (i++ > 10) {
+			ctrl->done = 1;
 		}
+
+		// tell fpga data has been sent
+		printf("top: output_valid <- false\n");
 		ctrl->output_valid = 0;
-		ctrl->done = 1;
 	}
 	printf("CPU done\n");
 	pthread_exit(NULL);
@@ -114,5 +116,5 @@ int main() {
 			num_partitions++;
 		}
 	}
-	printf("num_partitions: %zu\n", num_partitions);
+	printf("num_partitions: %lu\n", num_partitions);
 }

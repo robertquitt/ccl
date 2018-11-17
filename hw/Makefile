@@ -1,4 +1,4 @@
-CPPFLAGS += -DCSIM -pthread -g
+CPPFLAGS += -DCSIM -pthread -g -Wall -Wpedantic -Wno-unknown-pragmas
 
 testbench: graph.cpp testbench.cpp
 
