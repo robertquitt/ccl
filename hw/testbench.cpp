@@ -6,7 +6,7 @@ struct thread_data {
 	edge_t* edges;
 	info_t* input;
 	info_t* output;
-	ap_uint<64>* labels;
+	label_t* labels;
 	int world_rank;
 	int world_size;
 	int num_edges;
@@ -31,7 +31,7 @@ void *cpu_sim(void *threadarg) {
 		while (!ctrl->output_valid) {
 			;
 		}
-		printf("CPU output size: %i\n", ctrl->output_size);
+		printf("CPU output size: %zu\n", ctrl->output_size);
 		ctrl->input_valid = 1;
 		while (ctrl->input_valid) {
 			;
@@ -47,7 +47,7 @@ edge_t edges[MAX_EDGES];
 size_t num_edges;
 info_t input[MAX_EDGES];
 info_t output[MAX_EDGES];
-ap_uint<64> labels[MAX_VERTICES];
+label_t labels[MAX_VERTICES];
 
 /**
  * Simulates CPU-Accelerator coprocessing system
@@ -65,12 +65,18 @@ int main() {
 	FILE *file = fopen("n100p0.1.txt", "r");
 //	FILE *file = fopen("facebook_combined.txt", "r");
 
+	if (file == NULL)
+	{
+		fprintf(stderr, "Failed to open graph file\n");
+		exit(1);
+	}
+
 	num_edges = 0;
 	size_t num_vertices = 0;
 
 	while (!feof(file) && num_edges < MAX_EDGES) {
 		edge_t edge;
-		fscanf(file, "%llu %llu\n", &edge.from, &edge.to);
+		fscanf(file, "%lu %lu\n", &edge.from, &edge.to);
 		if (edge.from > num_vertices)
 			num_vertices = edge.from;
 		if (edge.to > num_vertices) {

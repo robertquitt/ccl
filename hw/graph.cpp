@@ -1,14 +1,11 @@
 #include "graph.h"
+
 //1. All edges point to me
 //2. 4 parts of vertices
 //	a. myself-myself
 //	b. send the data from the proc2/proc3/proc4 to me
 //	c. process the lables
-//
 
-//static uint64_t labels[MAX_VERTICES];
-//static ap_uint<1> label_update[MAX_VERTICES];
-// Returns processor #
 static inline int vtor(int vertex_idx, int world_size, int num_vertices) {
 	return (vertex_idx) * world_size / num_vertices;
 }
@@ -27,9 +24,8 @@ static inline int rtov_lower(int rank, int world_size, int num_vertices) {
 // ctrl[0] -> accel output valid signal
 // ctrl[1] -> accel input valid signal
 // output_size -> largest buffer size, but we are not using it
-
-void top(ctrl_t* ctrl, edge_t* edges, info_t* input, info_t* output,
-		ap_uint<64>* labels, int world_rank, int world_size, int num_edges,
+void top(ctrl_t* ctrl, edge_t* edges, info_t* input, info_t* output, label_t*
+		labels, int world_rank, int world_size, int num_edges,
 		int num_vertices) {
 #pragma HLS INTERFACE s_axilite port=return bundle=control
 #pragma HLS INTERFACE s_axilite port=edges bundle=control
@@ -49,8 +45,8 @@ void top(ctrl_t* ctrl, edge_t* edges, info_t* input, info_t* output,
 #pragma HLS INTERFACE s_axilite port=num_vertices bundle=control
 
 	printf("top %i\n", world_rank);
-	ap_uint<1> converged = 1;
-	ap_uint<64> local_labels[MAX_VERTICES];
+	bit_t converged = 1;
+	label_t local_labels[MAX_VERTICES];
 	//#pragma HLS ARRAY_PARTITION variable=local_labels complete dim=0
 
 	int offset = rtov_lower(world_rank, world_size, num_vertices);

@@ -1,17 +1,29 @@
+#include<stdlib.h>
 #include<stdint.h>
 #include<stdio.h>
 #include<stdbool.h>
+#ifndef CSIM
 #include "hls_stream.h"
 #include "ap_int.h"
+#endif
+
+#ifdef CSIM
+#define bit_t bool
+#define label_t uint64_t
+#else
+#define bit_t ap_uint<1>
+#define label_t ap_uint<64>
+#endif
+
 
 #define MAX_EDGES 131072
 #define MAX_VERTICES 8192
 
 typedef struct ctrl {
-	ap_uint<1> done; // input from CPU
-	ap_uint<1> converged;
-	ap_uint<1> output_valid;
-	ap_uint<1> input_valid;
+	bit_t done; // input from CPU
+	bit_t converged;
+	bit_t output_valid;
+	bit_t input_valid;
 	size_t output_size;
 	size_t input_size;
 } ctrl_t;
@@ -27,6 +39,5 @@ typedef struct info {
 	uint64_t label;
 } info_t;
 
-
-void top (ctrl_t* ctrl, edge_t* edges, info_t* input, info_t* output, ap_uint<64>* labels,
+void top (ctrl_t* ctrl, edge_t* edges, info_t* input, info_t* output, label_t* labels,
 		int world_rank, int world_size, int num_edges, int num_vertices);
