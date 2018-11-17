@@ -15,7 +15,6 @@ struct thread_data {
 };
 
 void test_helpers() {
-	assert(rtov_lower());
 }
 
 void *top_wrapper(void *threadarg) {
@@ -73,8 +72,10 @@ int main() {
 	struct thread_data my_data[NUM_NODES];
 	ctrl_t ctrl[NUM_NODES];
 
-	/* FILE *file = fopen("n100p0.1.txt", "r"); */
-	FILE *file = fopen("facebook_combined.txt", "r");
+	const char *filename = "facebook_combined.txt";
+	const bool undirected = true;
+
+	FILE *file = fopen(filename, "r");
 
 	if (file == NULL)
 	{
@@ -90,12 +91,18 @@ int main() {
 		fscanf(file, "%lu %lu\n", &edge.from, &edge.to);
 		if (edge.from > num_vertices)
 			num_vertices = edge.from;
-		// +1 because vertex ID starts at 0
-		if (edge.to + 1 > num_vertices) {
-			num_vertices = edge.to + 1;
+		if (edge.to  > num_vertices) {
+			num_vertices = edge.to;
 		}
 		edges[num_edges++] = edge;
+		if (undirected && num_edges < MAX_EDGES) {
+			edges[num_edges].from = edge.to;
+			edges[num_edges++].to = edge.from;
+		}
 	}
+
+	// +1 because vertex ID starts at 0
+	num_vertices += 1;
 
 	printf("num_edges = %lu\n", num_edges);
 	printf("num_vertices = %lu\n", num_vertices);

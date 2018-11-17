@@ -16,7 +16,7 @@
 #endif
 
 
-#define MAX_EDGES 131072
+#define MAX_EDGES 262144
 #define MAX_VERTICES 8192
 
 typedef struct ctrl {
