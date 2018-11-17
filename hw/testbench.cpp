@@ -1,4 +1,5 @@
 #include <pthread.h>
+#include <assert.h>
 #include "graph.h"
 
 struct thread_data {
@@ -13,6 +14,10 @@ struct thread_data {
 	int num_vertices;
 };
 
+void test_helpers() {
+	assert(rtov_lower());
+}
+
 void *top_wrapper(void *threadarg) {
 	struct thread_data *my_data;
 	my_data = (struct thread_data *) threadarg;
@@ -26,22 +31,26 @@ void *cpu_sim(void *threadarg) {
 	struct thread_data *my_data = (struct thread_data *) threadarg;
 
 	ctrl_t *ctrl = my_data->ctrl;
-	int i = 0;
 	while (1) {
 		// wait for fpga to have data ready to send
 		while (!ctrl->output_valid) {
 			;
 		}
 
-		if (i++ > 10) {
+		if (ctrl->converged) {
+			printf("cpu: done <- true\n");
 			ctrl->done = 1;
+			// tell fpga data has been sent
+			printf("cpu: output_valid <- false\n");
+			ctrl->output_valid = 0;
+			break;
 		}
 
 		// tell fpga data has been sent
-		printf("top: output_valid <- false\n");
+		printf("cpu: output_valid <- false\n");
 		ctrl->output_valid = 0;
 	}
-	printf("CPU done\n");
+	printf("cpu: done\n");
 	pthread_exit(NULL);
 }
 
@@ -64,8 +73,8 @@ int main() {
 	struct thread_data my_data[NUM_NODES];
 	ctrl_t ctrl[NUM_NODES];
 
-	FILE *file = fopen("n100p0.1.txt", "r");
-//	FILE *file = fopen("facebook_combined.txt", "r");
+	/* FILE *file = fopen("n100p0.1.txt", "r"); */
+	FILE *file = fopen("facebook_combined.txt", "r");
 
 	if (file == NULL)
 	{
@@ -81,11 +90,17 @@ int main() {
 		fscanf(file, "%lu %lu\n", &edge.from, &edge.to);
 		if (edge.from > num_vertices)
 			num_vertices = edge.from;
-		if (edge.to > num_vertices) {
-			num_vertices = edge.to;
+		// +1 because vertex ID starts at 0
+		if (edge.to + 1 > num_vertices) {
+			num_vertices = edge.to + 1;
 		}
 		edges[num_edges++] = edge;
 	}
+
+	printf("num_edges = %lu\n", num_edges);
+	printf("num_vertices = %lu\n", num_vertices);
+
+	assert(num_edges > MAX_VERTICES);
 
 	my_data[0].ctrl = &ctrl[0];
 	my_data[0].edges = edges;

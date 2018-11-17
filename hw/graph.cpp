@@ -55,8 +55,8 @@ void top(ctrl_t* ctrl, edge_t* edges, info_t* input, info_t* output, label_t*
 		//#pragma HLS UNROLL factor=16
 		local_labels[i - offset] = i;
 	}
-
-	printf("top initialized local_labels\n");
+	printf("offset = %i\n", offset);
+	printf("rtov_upper = %i\n", rtov_upper(world_rank, world_size, num_vertices));
 
 	while (1) {
 
@@ -89,6 +89,7 @@ void top(ctrl_t* ctrl, edge_t* edges, info_t* input, info_t* output, label_t*
 		count = 0;
 
 		ctrl->converged = converged;
+		printf("top: converged <- %i\n", converged);
 
 		// tell proc that we are ready to send out data
 		printf("top: output_valid <- true\n");
