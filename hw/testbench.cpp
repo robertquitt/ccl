@@ -1,3 +1,4 @@
+#include <unistd.h>
 #include <pthread.h>
 #include <assert.h>
 #include "graph.h"
@@ -67,13 +68,33 @@ label_t labels[MAX_VERTICES];
  */
 #define NUM_NODES 1
 
-int main() {
+int main(int argc, char *argv[]) {
+	const char *filename;
 	pthread_t threads[2 * NUM_NODES];
 	struct thread_data my_data[NUM_NODES];
 	ctrl_t ctrl[NUM_NODES];
 
-	const char *filename = "facebook_combined.txt";
-	const bool undirected = true;
+	bool undirected = false;
+
+	int opt;
+	while ((opt = getopt(argc, argv, "u")) != -1)
+	{
+		switch (opt) {
+			case 'u':
+				undirected = true;
+				break;
+			default:
+				fprintf(stderr, "Usage: %s [-u] edgelist\n", argv[0]);
+				exit(1);
+		}
+	}
+	if (optind + 1 != argc) {
+		fprintf(stderr, "Usage: %s [-u] edgelist\n", argv[0]);
+		exit(1);
+	}
+
+	filename = argv[optind];
+
 
 	FILE *file = fopen(filename, "r");
 
@@ -86,7 +107,11 @@ int main() {
 	num_edges = 0;
 	size_t num_vertices = 0;
 
-	while (!feof(file) && num_edges < MAX_EDGES) {
+	while (!feof(file)) {
+		if (num_edges >= MAX_EDGES) {
+			fprintf(stderr, "Graph has too many edges: more than num_edges %lu\n", num_edges);
+			exit(1);
+		}
 		edge_t edge;
 		fscanf(file, "%lu %lu\n", &edge.from, &edge.to);
 		if (edge.from > num_vertices)
@@ -103,6 +128,11 @@ int main() {
 
 	// +1 because vertex ID starts at 0
 	num_vertices += 1;
+
+	if (num_vertices >= MAX_VERTICES) {
+		fprintf(stderr, "Too many vertices: %lu\n", num_vertices);
+		exit(1);
+	}
 
 	printf("num_edges = %lu\n", num_edges);
 	printf("num_vertices = %lu\n", num_vertices);

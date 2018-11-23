@@ -17,7 +17,7 @@
 
 
 #define MAX_EDGES 262144
-#define MAX_VERTICES 8192
+#define MAX_VERTICES 16384
 
 typedef struct ctrl {
 	bit_t done; // input from CPU
