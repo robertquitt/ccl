@@ -39,6 +39,7 @@ void *cpu_sim(void *threadarg) {
 	int world_size = my_data->world_size;
 	int world_rank = my_data->world_rank;
 	int num_vertices = my_data->num_vertices;
+	info_t *input = my_data->input;
 	edge_t *edges = my_data->edges;
 
 
@@ -53,6 +54,7 @@ void *cpu_sim(void *threadarg) {
 	while (1) {
 
 		converged = true;
+		int count = 0;
 		for (int i = 0; i < num_edges; i++) {
 			edge_t e = edges[i];
 
@@ -62,7 +64,7 @@ void *cpu_sim(void *threadarg) {
 				info_t info;
 				info.to = e.to;
 				info.label = local_labels[e.from - offset];
-				/* output[count++] = info; */
+				input[count++] = info;
 			} else if (rto == world_rank && rfrom == world_rank) {
 				assert(e.from >= offset);
 				assert(e.to >= offset);
@@ -72,6 +74,9 @@ void *cpu_sim(void *threadarg) {
 				}
 			}
 		}
+		ctrl->input_size = count;
+
+		ctrl->input_valid = true;
 
 		// wait for fpga to have data ready to send
 		while (!ctrl->output_valid) {

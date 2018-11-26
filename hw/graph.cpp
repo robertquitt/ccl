@@ -92,27 +92,24 @@ void top(ctrl_t* ctrl, edge_t* edges, info_t* input, info_t* output, label_t*
 		printf("top: output_valid <- true (CPU ctrl)\n");
 		ctrl->output_valid = 1;
 
-		// poll to see if there is any incoming data
-
-		/* printf("top waiting for valid input\n"); */
-		/* while (!(ctrl->input_valid)) { */
-		/* 	; */
-		/* } */
+		while (!(ctrl->input_valid)) {
+			;
+		}
 
 		// process incoming data
-		/* size_t input_size = ctrl->input_size; */
-		/* for (size_t i = 0; i < input_size; i++) { */
-		/* 	info_t in = input[i]; */
-		/* 	if (local_labels[in.to - offset] != in.label) { */
-		/* 		local_labels[in.to - offset] = in.label; */
-		/* 		//    		label_updates[in.to - offset] = 1; */
-		/* 		converged = 0; */
-		/* 	} */
-		/* } */
+		size_t input_size = ctrl->input_size;
+		for (size_t i = 0; i < input_size; i++) {
+			info_t info = input[i];
+			if (local_labels[info.to - offset] != info.label) {
+				local_labels[info.to - offset] = info.label;
+				//    		label_updates[in.to - offset] = 1;
+				converged = 0;
+			}
+		}
 
 		/* printf("top processed incoming data\n"); */
 
-		/* ctrl->input_valid = 0; */
+		ctrl->input_valid = 0;
 
 		// wait till send is done on the proc end
 		while (ctrl->output_valid) {
