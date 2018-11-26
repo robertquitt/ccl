@@ -58,22 +58,23 @@ void top(ctrl_t* ctrl, edge_t* edges, info_t* input, info_t* output, label_t*
 	while (1) {
 
 		int count = 0;
+		converged = 1;
 		for (int i = 0; i < num_edges; i++) {
 			//#pragma HLS UNROLL factor=16
 			edge_t e = edges[i];
 
 			int rto = vtor(e.to, world_size, num_vertices);
-			/* int rfrom = vtor(e.from, world_size, num_vertices); */
-			// assert(rfrom == world_rank);
-			// Make sure the rfrom is always on the current processor when we partition the workload
-			if (rto != world_rank) {
+			int rfrom = vtor(e.from, world_size, num_vertices);
+
+			// TODO: partition the edges so that the "from" rank is
+			// the same for a single node
+
+			if (rto != world_rank && rfrom == world_rank) {
 				info_t info;
 				info.to = e.to;
 				info.label = local_labels[e.from - offset];
-				// destination vertex + label of rfrom if we have more than 2 processors, we need to have more buffers
 				output[count++] = info;
-			} else {
-				// edge touches two vertices in this rank
+			} else if (rto == world_rank && rfrom == world_rank) {
 				if (local_labels[e.from - offset]
 						< local_labels[e.to - offset]) {
 					local_labels[e.to - offset] = local_labels[e.from - offset];
@@ -81,7 +82,6 @@ void top(ctrl_t* ctrl, edge_t* edges, info_t* input, info_t* output, label_t*
 				}
 			}
 		}
-
 		ctrl->output_size = count;
 		count = 0;
 
@@ -89,7 +89,7 @@ void top(ctrl_t* ctrl, edge_t* edges, info_t* input, info_t* output, label_t*
 		printf("top: converged <- %i\n", converged);
 
 		// tell proc that we are ready to send out data
-		printf("top: output_valid <- true\n");
+		printf("top: output_valid <- true (CPU ctrl)\n");
 		ctrl->output_valid = 1;
 
 		// poll to see if there is any incoming data
@@ -118,7 +118,6 @@ void top(ctrl_t* ctrl, edge_t* edges, info_t* input, info_t* output, label_t*
 		while (ctrl->output_valid) {
 			;
 		}
-		converged = 1;
 
 		if (ctrl->done) {
 			for (int i = offset;

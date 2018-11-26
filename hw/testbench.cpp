@@ -52,19 +52,23 @@ void *cpu_sim(void *threadarg) {
 
 	while (1) {
 
+		converged = true;
 		for (int i = 0; i < num_edges; i++) {
 			edge_t e = edges[i];
 
 			int rto = vtor(e.to, world_size, num_vertices);
-			if (rto != world_rank) {
+			int rfrom = vtor(e.from, world_size, num_vertices);
+			if (rto != world_rank && rfrom == world_rank) {
 				info_t info;
 				info.to = e.to;
 				info.label = local_labels[e.from - offset];
 				/* output[count++] = info; */
-			} else {
+			} else if (rto == world_rank && rfrom == world_rank) {
+				assert(e.from >= offset);
+				assert(e.to >= offset);
 				if (local_labels[e.from - offset] < local_labels[e.to - offset]) {
 					local_labels[e.to - offset] = local_labels[e.from - offset];
-					converged = 0;
+					converged = false;
 				}
 			}
 		}
@@ -74,11 +78,11 @@ void *cpu_sim(void *threadarg) {
 			;
 		}
 
+		printf("cpu: converged = %i\n", converged);
+
 		if (ctrl->converged && converged) {
 			printf("cpu: done <- true\n");
 			ctrl->done = 1;
-			// tell fpga data has been sent
-			printf("cpu: output_valid <- false\n");
 			ctrl->output_valid = 0;
 			break;
 		}
@@ -89,12 +93,14 @@ void *cpu_sim(void *threadarg) {
 			info_t info = my_data->output[i];
 			assert(info.label < MAX_VERTICES);
 			assert(info.label >= 0);
-			local_labels[info.to] = info.label;
+
+			if (local_labels[info.to] > info.label)
+				local_labels[info.to] = info.label;
 		}
 
 
 		// tell fpga data has been sent
-		printf("cpu: output_valid <- false\n");
+		printf("cpu: output_valid <- false (FPGA ctrl)\n");
 		ctrl->output_valid = 0;
 	}
 	printf("cpu: done\n");
