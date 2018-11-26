@@ -41,3 +41,9 @@ typedef struct info {
 
 void top (ctrl_t* ctrl, edge_t* edges, info_t* input, info_t* output, label_t* labels,
 		int world_rank, int world_size, int num_edges, int num_vertices);
+
+int vtor(int vertex_idx, int world_size, int num_vertices);
+
+int rtov_upper(int rank, int world_size, int num_vertices);
+
+int rtov_lower(int rank, int world_size, int num_vertices);

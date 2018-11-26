@@ -3,6 +3,8 @@
 #include <assert.h>
 #include "graph.h"
 
+#define NUM_NODES 1
+
 struct thread_data {
 	ctrl_t* ctrl;
 	edge_t* edges;
@@ -29,15 +31,50 @@ void *top_wrapper(void *threadarg) {
 
 void *cpu_sim(void *threadarg) {
 	struct thread_data *my_data = (struct thread_data *) threadarg;
+	bool converged = true;
+	int offset = rtov_lower(my_data->world_rank, my_data->world_size, my_data->num_vertices);
+	int upper = rtov_upper(my_data->world_rank, my_data->world_size, my_data->num_vertices);
+	int num_labels = upper - offset;
+	int num_edges = my_data->num_edges;
+	int world_size = my_data->world_size;
+	int world_rank = my_data->world_rank;
+	int num_vertices = my_data->num_vertices;
+	edge_t *edges = my_data->edges;
+
+
+	label_t local_labels[MAX_VERTICES/NUM_NODES/2];
+
+	for (int i = 0; i < num_labels; i++) {
+		local_labels[i] = my_data->labels[i + offset];
+	}
 
 	ctrl_t *ctrl = my_data->ctrl;
+
 	while (1) {
+
+		for (int i = 0; i < num_edges; i++) {
+			edge_t e = edges[i];
+
+			int rto = vtor(e.to, world_size, num_vertices);
+			if (rto != world_rank) {
+				info_t info;
+				info.to = e.to;
+				info.label = local_labels[e.from - offset];
+				/* output[count++] = info; */
+			} else {
+				if (local_labels[e.from - offset] < local_labels[e.to - offset]) {
+					local_labels[e.to - offset] = local_labels[e.from - offset];
+					converged = 0;
+				}
+			}
+		}
+
 		// wait for fpga to have data ready to send
 		while (!ctrl->output_valid) {
 			;
 		}
 
-		if (ctrl->converged) {
+		if (ctrl->converged && converged) {
 			printf("cpu: done <- true\n");
 			ctrl->done = 1;
 			// tell fpga data has been sent
@@ -45,6 +82,16 @@ void *cpu_sim(void *threadarg) {
 			ctrl->output_valid = 0;
 			break;
 		}
+
+		size_t output_size = ctrl->output_size;
+		printf("cpu: output_size = %lu\n", output_size);
+		for (size_t i = 0; i < output_size; i++) {
+			info_t info = my_data->output[i];
+			assert(info.label < MAX_VERTICES);
+			assert(info.label >= 0);
+			local_labels[info.to] = info.label;
+		}
+
 
 		// tell fpga data has been sent
 		printf("cpu: output_valid <- false\n");
@@ -66,12 +113,11 @@ label_t labels[MAX_VERTICES];
  * threads[0]: cpu 0
  * threads[1]: accel 0
  */
-#define NUM_NODES 1
 
 int main(int argc, char *argv[]) {
 	const char *filename;
 	pthread_t threads[2 * NUM_NODES];
-	struct thread_data my_data[NUM_NODES];
+	struct thread_data my_data[2 * NUM_NODES];
 	ctrl_t ctrl[NUM_NODES];
 
 	bool undirected = false;
@@ -145,9 +191,19 @@ int main(int argc, char *argv[]) {
 	my_data[0].output = output;
 	my_data[0].labels = labels;
 	my_data[0].world_rank = 0;
-	my_data[0].world_size = 1;
+	my_data[0].world_size = 2;
 	my_data[0].num_edges = num_edges;
 	my_data[0].num_vertices = num_vertices;
+
+	my_data[1].ctrl = &ctrl[0];
+	my_data[1].edges = edges;
+	my_data[1].input = input;
+	my_data[1].output = output;
+	my_data[1].labels = labels;
+	my_data[1].world_rank = 1;
+	my_data[1].world_size = 2;
+	my_data[1].num_edges = num_edges;
+	my_data[1].num_vertices = num_vertices;
 
 	ctrl[0].input_size = 0;
 	ctrl[0].output_size = 0;
@@ -157,7 +213,7 @@ int main(int argc, char *argv[]) {
 	ctrl[0].output_valid = 0;
 
 	pthread_create(&threads[0], NULL, cpu_sim, (void *) &my_data[0]);
-	pthread_create(&threads[1], NULL, top_wrapper, (void *) &my_data[0]);
+	pthread_create(&threads[1], NULL, top_wrapper, (void *) &my_data[1]);
 
 	pthread_join(threads[0], NULL);
 	pthread_join(threads[1], NULL);
@@ -166,6 +222,7 @@ int main(int argc, char *argv[]) {
 	for (size_t i = 0; i < num_vertices; i++) {
 		if (labels[i] == i) {
 			num_partitions++;
+			printf("%lu\n", i);
 		}
 	}
 	printf("num_partitions: %lu\n", num_partitions);

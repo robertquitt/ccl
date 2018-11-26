@@ -6,15 +6,15 @@
 //	b. send the data from the proc2/proc3/proc4 to me
 //	c. process the lables
 
-static inline int vtor(int vertex_idx, int world_size, int num_vertices) {
+int vtor(int vertex_idx, int world_size, int num_vertices) {
 	return (vertex_idx) * world_size / num_vertices;
 }
 
-static inline int rtov_upper(int rank, int world_size, int num_vertices) {
+int rtov_upper(int rank, int world_size, int num_vertices) {
 	return num_vertices * (rank + 1) / world_size;
 }
 
-static inline int rtov_lower(int rank, int world_size, int num_vertices) {
+int rtov_lower(int rank, int world_size, int num_vertices) {
 	return num_vertices * rank / world_size;
 }
 
@@ -55,9 +55,6 @@ void top(ctrl_t* ctrl, edge_t* edges, info_t* input, info_t* output, label_t*
 		//#pragma HLS UNROLL factor=16
 		local_labels[i - offset] = i;
 	}
-	printf("offset = %i\n", offset);
-	printf("rtov_upper = %i\n", rtov_upper(world_rank, world_size, num_vertices));
-
 	while (1) {
 
 		int count = 0;
