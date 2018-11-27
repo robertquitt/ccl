@@ -14,7 +14,7 @@ int vtor(int vertex_idx, int world_size, int num_vertices) {
 
 int rtov_upper(int rank, int world_size, int num_vertices) {
   int trunk_size =  (num_vertices + world_size - 1) / world_size;
-  int upper = rank * (trunk_size + 1) < num_vertices ? rank * (trunk_size + 1): num_vertices;
+  int upper = (rank+1) * trunk_size < num_vertices ? (rank+1) * trunk_size : num_vertices;
 	//return num_vertices * (rank + 1) / world_size;
   return upper;
 }
