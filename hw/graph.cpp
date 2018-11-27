@@ -7,7 +7,7 @@
 //	c. process the lables
 
 int vtor(int vertex_idx, int world_size, int num_vertices) {
-	return (vertex_idx) * world_size / num_vertices;
+	return (vertex_idx + 1) * world_size / num_vertices;
 }
 
 int rtov_upper(int rank, int world_size, int num_vertices) {
@@ -74,11 +74,14 @@ void top(ctrl_t* ctrl, edge_t* edges, info_t* input, info_t* output, label_t*
 				info.to = e.to;
 				info.label = local_labels[e.from - offset];
 				output[count++] = info;
+
+        //printf("accel: send from %d(%d) to %d\n", e.from, info.label, e.to);
 			} else if (rto == world_rank && rfrom == world_rank) {
 				if (local_labels[e.from - offset]
 						< local_labels[e.to - offset]) {
 					local_labels[e.to - offset] = local_labels[e.from - offset];
 					converged = 0;
+        //printf("accel: update from %d(%d) to %d(%d)\n", e.to, local_labels[e.to - offset], e.from, local_labels[e.from - offset]);
 				}
 			}
 		}
@@ -86,10 +89,10 @@ void top(ctrl_t* ctrl, edge_t* edges, info_t* input, info_t* output, label_t*
 		count = 0;
 
 		ctrl->converged = converged;
-		printf("top: converged <- %i\n", converged);
+		//printf("top: converged <- %i\n", converged);
 
 		// tell proc that we are ready to send out data
-		printf("top: output_valid <- true (CPU ctrl)\n");
+		//printf("top: output_valid <- true (CPU ctrl)\n");
 		ctrl->output_valid = 1;
 
 		while (!(ctrl->input_valid)) {
@@ -100,6 +103,8 @@ void top(ctrl_t* ctrl, edge_t* edges, info_t* input, info_t* output, label_t*
 		size_t input_size = ctrl->input_size;
 		for (size_t i = 0; i < input_size; i++) {
 			info_t info = input[i];
+
+      //printf("accel: recv to %d label %d\n", info.to, info.label);
 			if (local_labels[info.to - offset] != info.label) {
 				local_labels[info.to - offset] = info.label;
 				//    		label_updates[in.to - offset] = 1;
@@ -120,8 +125,11 @@ void top(ctrl_t* ctrl, edge_t* edges, info_t* input, info_t* output, label_t*
 			for (int i = offset;
 					i < rtov_upper(world_rank, world_size, num_vertices); i++) {
 #pragma HLS UNROLL factor=16
+        //printf("labels %d",local_labels[i - offset] );
 				labels[i] = local_labels[i - offset];
 			}
+      //printf("offset %d ", offset);
+      //printf("upper %d\n", rtov_upper(world_rank, world_size, num_vertices));
 			return;
 		}
 	}
