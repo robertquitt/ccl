@@ -7,7 +7,7 @@
 //	c. process the lables
 
 int vtor(int vertex_idx, int world_size, int num_vertices) {
-	return (vertex_idx + 1) * world_size / num_vertices;
+	return (vertex_idx * world_size + 1) / num_vertices;
 }
 
 int rtov_upper(int rank, int world_size, int num_vertices) {

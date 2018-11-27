@@ -2,6 +2,11 @@ CPPFLAGS += -DCSIM -pthread -g -Wall -Wpedantic -Wno-unknown-pragmas
 
 testbench: graph.cpp testbench.cpp graph.h
 
+unittests: graph.cpp graph.h unittests.cpp
+
+test: unittests
+	./unittests && echo unit tests passed
+
 run: testbench facebook_combined.txt
 	./testbench -u facebook_combined.txt
 
@@ -11,4 +16,4 @@ facebook_combined.txt:
 clean:
 	rm -f testbench testbench.o graph.o
 
-.PHONY: run clean
+.PHONY: run clean test

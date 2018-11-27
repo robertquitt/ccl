@@ -17,9 +17,6 @@ struct thread_data {
 	int num_vertices;
 };
 
-void test_helpers() {
-}
-
 void *top_wrapper(void *threadarg) {
 	struct thread_data *my_data;
 	my_data = (struct thread_data *) threadarg;
