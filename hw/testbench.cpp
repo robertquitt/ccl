@@ -46,11 +46,13 @@ void *cpu_sim(void *threadarg) {
 	label_t local_labels[MAX_VERTICES/NUM_NODES/2];
 
 	for (int i = 0; i < num_labels; i++) {
-		local_labels[i] = my_data->labels[i + offset];
+		//local_labels[i] = my_data->labels[i + offset];
+		local_labels[i] = i + offset;
 	}
 
 	ctrl_t *ctrl = my_data->ctrl;
 
+  int iter = 0;
 	while (1) {
 
 		converged = true;
@@ -60,15 +62,20 @@ void *cpu_sim(void *threadarg) {
 
 			int rto = vtor(e.to, world_size, num_vertices);
 			int rfrom = vtor(e.from, world_size, num_vertices);
+      //printf("rfrom%d(%d) rto%d(%d)\n", rfrom, e.from, rto, e.to);
 			if (rto != world_rank && rfrom == world_rank) {
 				info_t info;
 				info.to = e.to;
 				info.label = local_labels[e.from - offset];
 				input[count++] = info;
+        printf("cpu: send from %d(%d) to %d\n", e.from, info.label, e.to);
 			} else if (rto == world_rank && rfrom == world_rank) {
 				assert(e.from >= offset);
 				assert(e.to >= offset);
+
+        printf("cpu: update from %d(%d) to %d(%d)\n", e.to, local_labels[e.to - offset], e.from, local_labels[e.from - offset]);
 				if (local_labels[e.from - offset] < local_labels[e.to - offset]) {
+
 					local_labels[e.to - offset] = local_labels[e.from - offset];
 					converged = false;
 				}
@@ -85,6 +92,7 @@ void *cpu_sim(void *threadarg) {
 
 		printf("cpu: converged = %i\n", converged);
 
+		//if (ctrl->converged && converged && iter !=0 ) {
 		if (ctrl->converged && converged) {
 			printf("cpu: done <- true\n");
 			ctrl->done = 1;
@@ -99,15 +107,31 @@ void *cpu_sim(void *threadarg) {
 			assert(info.label < MAX_VERTICES);
 			assert(info.label >= 0);
 
-			if (local_labels[info.to] > info.label)
-				local_labels[info.to] = info.label;
+      printf("cpu: recv to %d label %d\n", info.to, info.label);
+			if (local_labels[info.to - offset] > info.label) {
+				local_labels[info.to - offset] = info.label;
+      }
 		}
-
 
 		// tell fpga data has been sent
 		printf("cpu: output_valid <- false (FPGA ctrl)\n");
 		ctrl->output_valid = 0;
+    
+		while (ctrl->input_valid) {
+			;
+		}
+
+    iter++;
 	}
+
+  for (int i = offset;
+      i < upper; i++) {
+      my_data->labels[i] = local_labels[i - offset];
+  }
+  printf("offset %d ", offset);
+  printf("upper %d\n", rtov_upper(world_rank, world_size, num_vertices));
+
+
 	printf("cpu: done\n");
 	pthread_exit(NULL);
 }
@@ -133,6 +157,9 @@ int main(int argc, char *argv[]) {
 
 	bool undirected = false;
 
+  for(int i; i < MAX_VERTICES; i++) {
+    labels[i]=i;
+  }
 	int opt;
 	while ((opt = getopt(argc, argv, "u")) != -1)
 	{
@@ -231,6 +258,7 @@ int main(int argc, char *argv[]) {
 
 	size_t num_partitions = 0;
 	for (size_t i = 0; i < num_vertices; i++) {
+     //printf("%d ", labels[i]);
 		if (labels[i] == i) {
 			num_partitions++;
 			printf("%lu\n", i);

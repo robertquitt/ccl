@@ -7,15 +7,23 @@
 //	c. process the lables
 
 int vtor(int vertex_idx, int world_size, int num_vertices) {
-	return (vertex_idx + 1) * world_size / num_vertices;
+  int trunk_size =  (num_vertices + world_size - 1) / world_size;
+  return vertex_idx / trunk_size;
+	//return ((vertex_idx + 1) * world_size / num_vertices;
 }
 
 int rtov_upper(int rank, int world_size, int num_vertices) {
-	return num_vertices * (rank + 1) / world_size;
+  int trunk_size =  (num_vertices + world_size - 1) / world_size;
+  int upper = rank * (trunk_size + 1) < num_vertices ? rank * (trunk_size + 1): num_vertices;
+	//return num_vertices * (rank + 1) / world_size;
+  return upper;
 }
 
 int rtov_lower(int rank, int world_size, int num_vertices) {
-	return num_vertices * rank / world_size;
+  int trunk_size =  (num_vertices + world_size - 1) / world_size;
+  int lower = rank * (trunk_size) < num_vertices ? rank * (trunk_size): num_vertices;
+  return lower;
+	//return num_vertices * rank / world_size;
 }
 
 // Convert directed graph -> undirected graph
@@ -55,10 +63,11 @@ void top(ctrl_t* ctrl, edge_t* edges, info_t* input, info_t* output, label_t*
 		//#pragma HLS UNROLL factor=16
 		local_labels[i - offset] = i;
 	}
+
+  converged = 1;
 	while (1) {
 
 		int count = 0;
-		converged = 1;
 		for (int i = 0; i < num_edges; i++) {
 			//#pragma HLS UNROLL factor=16
 			edge_t e = edges[i];
@@ -75,7 +84,7 @@ void top(ctrl_t* ctrl, edge_t* edges, info_t* input, info_t* output, label_t*
 				info.label = local_labels[e.from - offset];
 				output[count++] = info;
 
-        //printf("accel: send from %d(%d) to %d\n", e.from, info.label, e.to);
+      printf("accel: send from %d(%d) to %d\n", e.from, info.label, e.to);
 			} else if (rto == world_rank && rfrom == world_rank) {
 				if (local_labels[e.from - offset]
 						< local_labels[e.to - offset]) {
@@ -99,6 +108,7 @@ void top(ctrl_t* ctrl, edge_t* edges, info_t* input, info_t* output, label_t*
 			;
 		}
 
+    converged = 1;
 		// process incoming data
 		size_t input_size = ctrl->input_size;
 		for (size_t i = 0; i < input_size; i++) {
@@ -113,7 +123,6 @@ void top(ctrl_t* ctrl, edge_t* edges, info_t* input, info_t* output, label_t*
 		}
 
 		/* printf("top processed incoming data\n"); */
-
 		ctrl->input_valid = 0;
 
 		// wait till send is done on the proc end
@@ -127,9 +136,13 @@ void top(ctrl_t* ctrl, edge_t* edges, info_t* input, info_t* output, label_t*
 #pragma HLS UNROLL factor=16
         //printf("labels %d",local_labels[i - offset] );
 				labels[i] = local_labels[i - offset];
+        if(local_labels[i - offset]!= 0) {
+
+            printf("accel %d ", local_labels[i - offset]);
+        }
 			}
-      //printf("offset %d ", offset);
-      //printf("upper %d\n", rtov_upper(world_rank, world_size, num_vertices));
+      printf("offset %d ", offset);
+      printf("upper %d\n", rtov_upper(world_rank, world_size, num_vertices));
 			return;
 		}
 	}
