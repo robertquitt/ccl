@@ -7,20 +7,20 @@
 //	c. process the lables
 
 int vtor(int vertex_idx, int world_size, int num_vertices) {
-  int trunk_size =  (num_vertices + world_size - 1) / world_size;
-  return vertex_idx / trunk_size;
+	int trunk_size =  (num_vertices + world_size - 1) / world_size;
+	return vertex_idx / trunk_size;
 }
 
 int rtov_upper(int rank, int world_size, int num_vertices) {
-  int trunk_size =  (num_vertices + world_size - 1) / world_size;
-  int upper = (rank+1) * trunk_size < num_vertices ? (rank+1) * trunk_size : num_vertices;
-  return upper;
+	int trunk_size =  (num_vertices + world_size - 1) / world_size;
+	int upper = (rank+1) * trunk_size < num_vertices ? (rank+1) * trunk_size : num_vertices;
+	return upper;
 }
 
 int rtov_lower(int rank, int world_size, int num_vertices) {
-  int trunk_size =  (num_vertices + world_size - 1) / world_size;
-  int lower = rank * (trunk_size) < num_vertices ? rank * (trunk_size): num_vertices;
-  return lower;
+	int trunk_size =  (num_vertices + world_size - 1) / world_size;
+	int lower = rank * (trunk_size) < num_vertices ? rank * (trunk_size): num_vertices;
+	return lower;
 }
 
 // Convert directed graph -> undirected graph
@@ -61,7 +61,7 @@ void top(ctrl_t* ctrl, edge_t* edges, info_t* input, info_t* output, label_t*
 		local_labels[i - offset] = i;
 	}
 
-  converged = 1;
+	converged = 1;
 	while (1) {
 
 		int count = 0;
@@ -81,13 +81,13 @@ void top(ctrl_t* ctrl, edge_t* edges, info_t* input, info_t* output, label_t*
 				info.label = local_labels[e.from - offset];
 				output[count++] = info;
 
-      printf("accel: send from %d(%d) to %d\n", e.from, info.label, e.to);
+				printf("accel: send from %d(%d) to %d\n", e.from, info.label, e.to);
 			} else if (rto == world_rank && rfrom == world_rank) {
 				if (local_labels[e.from - offset]
 						< local_labels[e.to - offset]) {
 					local_labels[e.to - offset] = local_labels[e.from - offset];
 					converged = 0;
-        //printf("accel: update from %d(%d) to %d(%d)\n", e.to, local_labels[e.to - offset], e.from, local_labels[e.from - offset]);
+					//printf("accel: update from %d(%d) to %d(%d)\n", e.to, local_labels[e.to - offset], e.from, local_labels[e.from - offset]);
 				}
 			}
 		}
@@ -105,13 +105,13 @@ void top(ctrl_t* ctrl, edge_t* edges, info_t* input, info_t* output, label_t*
 			;
 		}
 
-    converged = 1;
+		converged = 1;
 		// process incoming data
 		size_t input_size = ctrl->input_size;
 		for (size_t i = 0; i < input_size; i++) {
 			info_t info = input[i];
 
-      //printf("accel: recv to %d label %d\n", info.to, info.label);
+			//printf("accel: recv to %d label %d\n", info.to, info.label);
 			if (local_labels[info.to - offset] != info.label) {
 				local_labels[info.to - offset] = info.label;
 				//    		label_updates[in.to - offset] = 1;
@@ -131,15 +131,15 @@ void top(ctrl_t* ctrl, edge_t* edges, info_t* input, info_t* output, label_t*
 			for (int i = offset;
 					i < rtov_upper(world_rank, world_size, num_vertices); i++) {
 #pragma HLS UNROLL factor=16
-        //printf("labels %d",local_labels[i - offset] );
+				//printf("labels %d",local_labels[i - offset] );
 				labels[i] = local_labels[i - offset];
-        if(local_labels[i - offset]!= 0) {
+				if(local_labels[i - offset]!= 0) {
 
-            printf("accel %d ", local_labels[i - offset]);
-        }
+					printf("accel %d ", local_labels[i - offset]);
+				}
 			}
-      printf("offset %d ", offset);
-      printf("upper %d\n", rtov_upper(world_rank, world_size, num_vertices));
+			printf("offset %d ", offset);
+			printf("upper %d\n", rtov_upper(world_rank, world_size, num_vertices));
 			return;
 		}
 	}

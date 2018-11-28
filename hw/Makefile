@@ -10,6 +10,9 @@ test: unittests
 run: testbench facebook_combined.txt
 	./testbench -u facebook_combined.txt
 
+run-cpu: testbench facebook_combined.txt
+	./testbench -uc facebook_combined.txt
+
 facebook_combined.txt:
 	wget https://snap.stanford.edu/data/facebook_combined.txt.gz -O - | gunzip > $@
 

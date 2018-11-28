@@ -26,6 +26,53 @@ void *top_wrapper(void *threadarg) {
 	pthread_exit(NULL);
 }
 
+void *cpu_only_sim(void *threadarg) {
+	struct thread_data *my_data = (struct thread_data *) threadarg;
+	bool converged = true;
+	int offset = rtov_lower(my_data->world_rank, my_data->world_size, my_data->num_vertices);
+	int upper = rtov_upper(my_data->world_rank, my_data->world_size, my_data->num_vertices);
+	int num_labels = upper - offset;
+	int num_edges = my_data->num_edges;
+	int world_size = my_data->world_size;
+	int world_rank = my_data->world_rank;
+	int num_vertices = my_data->num_vertices;
+	info_t *input = my_data->input;
+	edge_t *edges = my_data->edges;
+
+
+	label_t local_labels[MAX_VERTICES/NUM_NODES/2];
+
+	label_t *labels = my_data->labels;
+
+	int iter = 0;
+	while (1) {
+		converged = true;
+		int count = 0;
+		for (int i = 0; i < num_edges; i++) {
+			edge_t e = edges[i];
+			printf("cpu: update from %d(%d) to %d(%d)\n", e.to, local_labels[e.to - offset], e.from, local_labels[e.from - offset]);
+			if (labels[e.from] < labels[e.to]) {
+				labels[e.to] = local_labels[e.from];
+				converged = false;
+			}
+		}
+
+		printf("cpu: converged = %i\n", converged);
+
+		if (converged) {
+			printf("cpu: done <- true\n");
+			break;
+		}
+
+
+
+		iter++;
+	}
+
+	printf("cpu: done\n");
+	pthread_exit(NULL);
+}
+
 void *cpu_sim(void *threadarg) {
 	struct thread_data *my_data = (struct thread_data *) threadarg;
 	bool converged = true;
@@ -49,7 +96,7 @@ void *cpu_sim(void *threadarg) {
 
 	ctrl_t *ctrl = my_data->ctrl;
 
-  int iter = 0;
+	int iter = 0;
 	while (1) {
 
 		converged = true;
@@ -113,7 +160,6 @@ void *cpu_sim(void *threadarg) {
 		// tell fpga data has been sent
 		printf("cpu: output_valid <- false (FPGA ctrl)\n");
 		ctrl->output_valid = 0;
-    
 		while (ctrl->input_valid) {
 			;
 		}
@@ -153,16 +199,20 @@ int main(int argc, char *argv[]) {
 	ctrl_t ctrl[NUM_NODES];
 
 	bool undirected = false;
+	bool cpu_only = false;
 
-  for(int i; i < MAX_VERTICES; i++) {
-    labels[i]=i;
-  }
+	for(int i; i < MAX_VERTICES; i++) {
+		labels[i]=i;
+	}
 	int opt;
-	while ((opt = getopt(argc, argv, "u")) != -1)
+	while ((opt = getopt(argc, argv, "uc")) != -1)
 	{
 		switch (opt) {
 			case 'u':
 				undirected = true;
+				break;
+			case 'c':
+				cpu_only = true;
 				break;
 			default:
 				fprintf(stderr, "Usage: %s [-u] edgelist\n", argv[0]);
@@ -220,13 +270,18 @@ int main(int argc, char *argv[]) {
 
 	assert(num_edges > MAX_VERTICES);
 
+	ctrl[0].input_size = 0;
+	ctrl[0].output_size = 0;
+	ctrl[0].converged = 0;
+	ctrl[0].done = 0;
+	ctrl[0].input_valid = 0;
+	ctrl[0].output_valid = 0;
+
 	my_data[0].ctrl = &ctrl[0];
 	my_data[0].edges = edges;
 	my_data[0].input = input;
 	my_data[0].output = output;
 	my_data[0].labels = labels;
-	my_data[0].world_rank = 0;
-	my_data[0].world_size = 2;
 	my_data[0].num_edges = num_edges;
 	my_data[0].num_vertices = num_vertices;
 
@@ -235,23 +290,31 @@ int main(int argc, char *argv[]) {
 	my_data[1].input = input;
 	my_data[1].output = output;
 	my_data[1].labels = labels;
-	my_data[1].world_rank = 1;
-	my_data[1].world_size = 2;
 	my_data[1].num_edges = num_edges;
 	my_data[1].num_vertices = num_vertices;
 
-	ctrl[0].input_size = 0;
-	ctrl[0].output_size = 0;
-	ctrl[0].converged = 0;
-	ctrl[0].done = 0;
-	ctrl[0].input_valid = 0;
-	ctrl[0].output_valid = 0;
+	if (cpu_only) {
+		my_data[0].world_rank = 0;
+		my_data[0].world_size = 1;
 
-	pthread_create(&threads[0], NULL, cpu_sim, (void *) &my_data[0]);
-	pthread_create(&threads[1], NULL, top_wrapper, (void *) &my_data[1]);
+		pthread_create(&threads[0], NULL, cpu_only_sim, (void *) &my_data[0]);
 
-	pthread_join(threads[0], NULL);
-	pthread_join(threads[1], NULL);
+		pthread_join(threads[0], NULL);
+		pthread_join(threads[1], NULL);
+	} else {
+		my_data[0].world_rank = 0;
+		my_data[0].world_size = 2;
+
+		my_data[1].world_rank = 1;
+		my_data[1].world_size = 2;
+
+		pthread_create(&threads[0], NULL, cpu_sim, (void *) &my_data[0]);
+		pthread_create(&threads[1], NULL, top_wrapper, (void *) &my_data[1]);
+
+		pthread_join(threads[0], NULL);
+		pthread_join(threads[1], NULL);
+	}
+
 
 	size_t num_partitions = 0;
 	for (size_t i = 0; i < num_vertices; i++) {
