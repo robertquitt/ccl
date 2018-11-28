@@ -36,7 +36,6 @@ void *cpu_only_sim(void *threadarg) {
 	int world_size = my_data->world_size;
 	int world_rank = my_data->world_rank;
 	int num_vertices = my_data->num_vertices;
-	info_t *input = my_data->input;
 	edge_t *edges = my_data->edges;
 
 
@@ -44,13 +43,17 @@ void *cpu_only_sim(void *threadarg) {
 
 	label_t *labels = my_data->labels;
 
+	for (int i = 0; i < num_labels; i++) {
+		labels[i] = i;
+	}
+
 	int iter = 0;
 	while (1) {
 		converged = true;
 		int count = 0;
 		for (int i = 0; i < num_edges; i++) {
 			edge_t e = edges[i];
-			printf("cpu: update from %d(%d) to %d(%d)\n", e.to, local_labels[e.to - offset], e.from, local_labels[e.from - offset]);
+			printf("cpu: update from %lu(%lu) to %lu(%lu)\n", e.to, local_labels[e.to - offset], e.from, local_labels[e.from - offset]);
 			if (labels[e.from] < labels[e.to]) {
 				labels[e.to] = local_labels[e.from];
 				converged = false;
@@ -112,12 +115,12 @@ void *cpu_sim(void *threadarg) {
 				info.to = e.to;
 				info.label = local_labels[e.from - offset];
 				input[count++] = info;
-        printf("cpu: send from %d(%d) to %d\n", e.from, info.label, e.to);
+				printf("cpu: send from %lu(%lu) to %lu\n", e.from, info.label, e.to);
 			} else if (rto == world_rank && rfrom == world_rank) {
 				assert(e.from >= offset);
 				assert(e.to >= offset);
 
-        printf("cpu: update from %d(%d) to %d(%d)\n", e.to, local_labels[e.to - offset], e.from, local_labels[e.from - offset]);
+				printf("cpu: update from %lu(%lu) to %lu(%lu)\n", e.to, local_labels[e.to - offset], e.from, local_labels[e.from - offset]);
 				if (local_labels[e.from - offset] < local_labels[e.to - offset]) {
 
 					local_labels[e.to - offset] = local_labels[e.from - offset];
@@ -151,7 +154,7 @@ void *cpu_sim(void *threadarg) {
 			assert(info.label < MAX_VERTICES);
 			assert(info.label >= 0);
 
-      printf("cpu: recv to %d label %d\n", info.to, info.label);
+			printf("cpu: recv to %lu label %lu\n", info.to, info.label);
 			if (local_labels[info.to - offset] > info.label) {
 				local_labels[info.to - offset] = info.label;
       }
