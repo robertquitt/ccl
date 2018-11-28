@@ -271,7 +271,7 @@ int main(int argc, char *argv[]) {
 	printf("num_edges = %lu\n", num_edges);
 	printf("num_vertices = %lu\n", num_vertices);
 
-	assert(num_edges > MAX_VERTICES);
+	assert(num_edges < MAX_EDGES);
 
 	ctrl[0].input_size = 0;
 	ctrl[0].output_size = 0;
