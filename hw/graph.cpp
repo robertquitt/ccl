@@ -51,6 +51,7 @@ void top(ctrl_t* ctrl, edge_t* edges, info_t* input, info_t* output, label_t*
 
 	bit_t converged = 1;
 	label_t local_labels[MAX_VERTICES];
+	char label_updates[MAX_VERTICES];
 	//#pragma HLS ARRAY_PARTITION variable=local_labels complete dim=0
 
 	int offset = rtov_lower(world_rank, world_size, num_vertices);
@@ -59,6 +60,7 @@ void top(ctrl_t* ctrl, edge_t* edges, info_t* input, info_t* output, label_t*
 			i < rtov_upper(world_rank, world_size, num_vertices); i++) {
 		//#pragma HLS UNROLL factor=16
 		local_labels[i - offset] = i;
+		label_updates[i - offset] = 1;
 	}
 
 	converged = 1;
@@ -75,17 +77,21 @@ void top(ctrl_t* ctrl, edge_t* edges, info_t* input, info_t* output, label_t*
 			// TODO: partition the edges so that the "from" rank is
 			// the same for a single node
 
-			if (rto != world_rank && rfrom == world_rank) {
+			if (rto != world_rank && rfrom == world_rank
+					&& label_updates[e.from - offset]) {
 				info_t info;
 				info.to = e.to;
 				info.label = local_labels[e.from - offset];
 				output[count++] = info;
+
+				label_updates[e.from - offset] = 0;
 
 				printf("accel: send from %d(%d) to %d\n", e.from, info.label, e.to);
 			} else if (rto == world_rank && rfrom == world_rank) {
 				if (local_labels[e.from - offset]
 						< local_labels[e.to - offset]) {
 					local_labels[e.to - offset] = local_labels[e.from - offset];
+					label_updates[e.to - offset] = 1;
 					converged = 0;
 					//printf("accel: update from %d(%d) to %d(%d)\n", e.to, local_labels[e.to - offset], e.from, local_labels[e.from - offset]);
 				}
@@ -101,6 +107,8 @@ void top(ctrl_t* ctrl, edge_t* edges, info_t* input, info_t* output, label_t*
 		//printf("top: output_valid <- true (CPU ctrl)\n");
 		ctrl->output_valid = 1;
 
+
+		// wait for cpu to finish
 		while (!(ctrl->input_valid)) {
 			;
 		}
@@ -114,7 +122,7 @@ void top(ctrl_t* ctrl, edge_t* edges, info_t* input, info_t* output, label_t*
 			//printf("accel: recv to %d label %d\n", info.to, info.label);
 			if (local_labels[info.to - offset] != info.label) {
 				local_labels[info.to - offset] = info.label;
-				//    		label_updates[in.to - offset] = 1;
+				label_updates[info.to - offset] = 1;
 				converged = 0;
 			}
 		}

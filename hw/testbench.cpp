@@ -52,7 +52,7 @@ void *cpu_only_sim(void *threadarg) {
 			edge_t e = edges[i];
 			printf("cpu: update from %d(%d) to %d(%d)\n", e.to, local_labels[e.to - offset], e.from, local_labels[e.from - offset]);
 			if (labels[e.from] < labels[e.to]) {
-				labels[e.to] = local_labels[e.from];
+				labels[e.to] = labels[e.from];
 				converged = false;
 			}
 		}
@@ -63,8 +63,6 @@ void *cpu_only_sim(void *threadarg) {
 			printf("cpu: done <- true\n");
 			break;
 		}
-
-
 
 		iter++;
 	}
@@ -88,10 +86,12 @@ void *cpu_sim(void *threadarg) {
 
 
 	label_t local_labels[MAX_VERTICES/NUM_NODES/2];
+	char label_updates[MAX_VERTICES];
 
 	for (int i = 0; i < num_labels; i++) {
 		//local_labels[i] = my_data->labels[i + offset];
 		local_labels[i] = i + offset;
+		label_updates[i] = 1;
 	}
 
 	ctrl_t *ctrl = my_data->ctrl;
@@ -106,21 +106,24 @@ void *cpu_sim(void *threadarg) {
 
 			int rto = vtor(e.to, world_size, num_vertices);
 			int rfrom = vtor(e.from, world_size, num_vertices);
-      //printf("rfrom%d(%d) rto%d(%d)\n", rfrom, e.from, rto, e.to);
-			if (rto != world_rank && rfrom == world_rank) {
+			//printf("rfrom%d(%d) rto%d(%d)\n", rfrom, e.from, rto, e.to);
+			if (rto != world_rank && rfrom == world_rank
+					&& label_updates[e.from - offset]) {
 				info_t info;
 				info.to = e.to;
 				info.label = local_labels[e.from - offset];
+				label_updates[e.from - offset] = 0;
 				input[count++] = info;
-        printf("cpu: send from %d(%d) to %d\n", e.from, info.label, e.to);
+				printf("cpu: send from %d(%d) to %d\n", e.from, info.label, e.to);
 			} else if (rto == world_rank && rfrom == world_rank) {
 				assert(e.from >= offset);
 				assert(e.to >= offset);
 
-        printf("cpu: update from %d(%d) to %d(%d)\n", e.to, local_labels[e.to - offset], e.from, local_labels[e.from - offset]);
+				printf("cpu: update from %d(%d) to %d(%d)\n", e.to, local_labels[e.to - offset], e.from, local_labels[e.from - offset]);
 				if (local_labels[e.from - offset] < local_labels[e.to - offset]) {
 
 					local_labels[e.to - offset] = local_labels[e.from - offset];
+					label_updates[e.to - offset] = 1;
 					converged = false;
 				}
 			}
@@ -154,6 +157,7 @@ void *cpu_sim(void *threadarg) {
       printf("cpu: recv to %d label %d\n", info.to, info.label);
 			if (local_labels[info.to - offset] > info.label) {
 				local_labels[info.to - offset] = info.label;
+				label_updates[info.to - offset] = 1;
       }
 		}
 
