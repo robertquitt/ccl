@@ -74,6 +74,10 @@ void *cpu_only_sim(void *threadarg) {
 	pthread_exit(NULL);
 }
 
+void labelprop() {
+
+}
+
 void *cpu_sim(void *threadarg) {
 	struct thread_data *my_data = (struct thread_data *) threadarg;
 	bool converged = true;
@@ -115,7 +119,6 @@ void *cpu_sim(void *threadarg) {
 				info_t info;
 				info.to = e.to;
 				info.label = local_labels[e.from - offset];
-				label_updates[e.from - offset] = 0;
 				input[count++] = info;
 				printf("cpu: send from %lu(%lu) to %lu\n", e.from, info.label, e.to);
 			} else if (rto == world_rank && rfrom == world_rank) {
@@ -131,6 +134,7 @@ void *cpu_sim(void *threadarg) {
 				}
 			}
 		}
+		label_updates[e.from - offset] = 0;
 		ctrl->input_size = count;
 
 		ctrl->input_valid = true;
@@ -161,7 +165,7 @@ void *cpu_sim(void *threadarg) {
 			if (local_labels[info.to - offset] > info.label) {
 				local_labels[info.to - offset] = info.label;
 				label_updates[info.to - offset] = 1;
-      }
+			}
 		}
 
 		// tell fpga data has been sent
@@ -171,19 +175,19 @@ void *cpu_sim(void *threadarg) {
 			;
 		}
 
-    iter++;
+		iter++;
 	}
 
-  for (int i = offset;
-      i < upper; i++) {
-      my_data->labels[i] = local_labels[i - offset];
-  }
-  printf("offset %d ", offset);
-  printf("upper %d\n", rtov_upper(world_rank, world_size, num_vertices));
+	for (int i = offset; i < upper; i++) {
+		my_data->labels[i] = local_labels[i - offset];
+	}
+	printf("offset %d ", offset);
+	printf("upper %d\n", rtov_upper(world_rank, world_size, num_vertices));
 
 
 	printf("cpu: done\n");
 	pthread_exit(NULL);
+
 }
 
 edge_t edges[MAX_EDGES];
@@ -325,7 +329,7 @@ int main(int argc, char *argv[]) {
 
 	size_t num_partitions = 0;
 	for (size_t i = 0; i < num_vertices; i++) {
-     //printf("%d ", labels[i]);
+		//printf("%d ", labels[i]);
 		if (labels[i] == i) {
 			num_partitions++;
 			printf("%lu\n", i);
