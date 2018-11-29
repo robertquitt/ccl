@@ -21,6 +21,6 @@ facebook_combined.txt:
 	wget https://snap.stanford.edu/data/facebook_combined.txt.gz -O - | gunzip > $@
 
 clean:
-	rm -f testbench testbench.o graph.o
+	rm -f testbench unittests
 
 .PHONY: run clean test

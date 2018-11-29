@@ -86,7 +86,7 @@ void top(ctrl_t* ctrl, edge_t* edges, info_t* input, info_t* output, label_t*
 
 				label_updates[e.from - offset] = 0;
 
-				printf("accel: send from %d(%d) to %d\n", e.from, info.label, e.to);
+				printf("accel: send from %lu(%lu) to %lu\n", e.from, info.label, e.to);
 			} else if (rto == world_rank && rfrom == world_rank) {
 				if (local_labels[e.from - offset]
 						< local_labels[e.to - offset]) {
@@ -143,7 +143,7 @@ void top(ctrl_t* ctrl, edge_t* edges, info_t* input, info_t* output, label_t*
 				labels[i] = local_labels[i - offset];
 				if(local_labels[i - offset]!= 0) {
 
-					printf("accel %d ", local_labels[i - offset]);
+					printf("accel %lu ", local_labels[i - offset]);
 				}
 			}
 			printf("offset %d ", offset);
