@@ -78,6 +78,10 @@ void labelprop() {
 
 }
 
+#define LABEL_UPDATE_SENT 0
+#define LABEL_UPDATE_WILLSEND 1
+#define LABEL_UPDATE_UNSENT 2
+
 void *cpu_sim(void *threadarg) {
 	struct thread_data *my_data = (struct thread_data *) threadarg;
 	bool converged = true;
@@ -98,7 +102,7 @@ void *cpu_sim(void *threadarg) {
 	for (int i = 0; i < num_labels; i++) {
 		//local_labels[i] = my_data->labels[i + offset];
 		local_labels[i] = i + offset;
-		label_updates[i] = 1;
+		label_updates[i] = LABEL_UPDATE_UNSENT;
 	}
 
 	ctrl_t *ctrl = my_data->ctrl;
@@ -115,10 +119,11 @@ void *cpu_sim(void *threadarg) {
 			int rfrom = vtor(e.from, world_size, num_vertices);
 			//printf("rfrom%d(%d) rto%d(%d)\n", rfrom, e.from, rto, e.to);
 			if (rto != world_rank && rfrom == world_rank
-					&& label_updates[e.from - offset]) {
+					&& label_updates[e.from - offset] != LABEL_UPDATE_SENT) {
 				info_t info;
 				info.to = e.to;
 				info.label = local_labels[e.from - offset];
+				label_updates[e.from - offset] = LABEL_UPDATE_WILLSEND;
 				input[count++] = info;
 				printf("cpu: send from %lu(%lu) to %lu\n", e.from, info.label, e.to);
 			} else if (rto == world_rank && rfrom == world_rank) {
@@ -129,12 +134,16 @@ void *cpu_sim(void *threadarg) {
 				if (local_labels[e.from - offset] < local_labels[e.to - offset]) {
 
 					local_labels[e.to - offset] = local_labels[e.from - offset];
-					label_updates[e.to - offset] = 1;
+					label_updates[e.to - offset] = LABEL_UPDATE_UNSENT;
 					converged = false;
 				}
 			}
 		}
-		label_updates[e.from - offset] = 0;
+		for (int i = 0; i < num_labels; i++) {
+			if (label_updates[i] == LABEL_UPDATE_WILLSEND) {
+				label_updates[i] = LABEL_UPDATE_SENT;
+			}
+		}
 		ctrl->input_size = count;
 
 		ctrl->input_valid = true;
@@ -164,7 +173,7 @@ void *cpu_sim(void *threadarg) {
 			printf("cpu: recv to %lu label %lu\n", info.to, info.label);
 			if (local_labels[info.to - offset] > info.label) {
 				local_labels[info.to - offset] = info.label;
-				label_updates[info.to - offset] = 1;
+				label_updates[info.to - offset] = LABEL_UPDATE_UNSENT;
 			}
 		}
 
@@ -187,7 +196,6 @@ void *cpu_sim(void *threadarg) {
 
 	printf("cpu: done\n");
 	pthread_exit(NULL);
-
 }
 
 edge_t edges[MAX_EDGES];

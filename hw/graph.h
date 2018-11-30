@@ -47,3 +47,5 @@ int vtor(int vertex_idx, int world_size, int num_vertices);
 int rtov_upper(int rank, int world_size, int num_vertices);
 
 int rtov_lower(int rank, int world_size, int num_vertices);
+
+void label_prop(info_t *input, info_t *output, int world_rank, int world_size, int num_vertices, ctrl_t *ctrl, edge_t *edges, int num_edges, label_t *labels);

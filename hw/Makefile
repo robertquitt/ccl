@@ -1,8 +1,17 @@
-CPPFLAGS += -DCSIM -pthread -g -Wall -Wpedantic -Wno-unknown-pragmas
+# Must have openmpi installed (openmpi-bin on Ubuntu)
 
-testbench: graph.cpp testbench.cpp graph.h
+CPPFLAGS += -DCSIM -pthread -g -Wall -Wno-unknown-pragmas
 
-unittests: graph.cpp graph.h unittests.cpp
+EXECS = testbench mpirunner unittests
+
+all: $(EXECS)
+
+testbench: graph.cpp testbench.cpp
+
+mpirunner: graph.cpp mpirunner.cpp
+	mpic++ $(CPPFLAGS) $^ -o $@
+
+unittests: graph.cpp unittests.cpp
 
 test: unittests
 	./unittests && echo unit tests passed
@@ -17,10 +26,13 @@ run-cpu: testbench facebook_combined.txt
 	head log
 	tail log
 
+run-mpi: mpirunner facebook_combined.txt
+	mpirun -n 2 ./mpirunner
+
 facebook_combined.txt:
 	wget https://snap.stanford.edu/data/facebook_combined.txt.gz -O - | gunzip > $@
 
 clean:
-	rm -f testbench unittests
+	rm -f $(EXECS)
 
 .PHONY: run clean test
