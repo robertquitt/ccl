@@ -59,9 +59,9 @@ void top(ctrl_t* ctrl, edge_t* edges, info_t* input, info_t* output, label_t*
 void label_prop(info_t *input, info_t *output, int world_rank, int world_size,
 		int num_vertices, ctrl_t *ctrl, edge_t *edges, int num_edges, label_t *labels) {
 	label_t local_labels[MAX_VERTICES];
-#pragma HLS ARRAY_PARTITION variable=local_labels complete dim=0
-
+	label_t label_buffer[MAX_VERTICES];
 	char label_updates[MAX_VERTICES];
+#pragma HLS ARRAY_PARTITION variable=local_labels complete dim=0
 
 	int offset = rtov_lower(world_rank, world_size, num_vertices);
 
@@ -91,9 +91,8 @@ void label_prop(info_t *input, info_t *output, int world_rank, int world_size,
 				info.to = e.to;
 				info.label = local_labels[e.from - offset];
 				output[count++] = info;
-
 				label_updates[e.from - offset] = 0;
-
+				label_buffer[e.from] = local_labels[e.from - offset];
 				printf("[%i]: send from %lu(%lu) to %lu\n", world_rank, e.from, info.label, e.to);
 			} else if (rto == world_rank && rfrom == world_rank) {
 				if (local_labels[e.from - offset]
@@ -107,6 +106,7 @@ void label_prop(info_t *input, info_t *output, int world_rank, int world_size,
 				// edge source vertex doesn't belong to us
 			}
 		}
+
 		// send(output_size = count)
 		ctrl->output_size = count;
 		count = 0;

@@ -18,6 +18,11 @@
 
 #define MAX_EDGES 262144
 #define MAX_VERTICES 16384
+#define LABEL_UPDATE_SENT 0
+#define LABEL_UPDATE_WILLSEND 1
+#define LABEL_UPDATE_UNSENT 2
+
+#define LABEL_BUFFER_UPDATED 2
 
 typedef struct ctrl {
 	bit_t done; // input from CPU

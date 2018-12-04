@@ -3,8 +3,6 @@
 #include <assert.h>
 #include "graph.h"
 
-#define NUM_NODES 1
-
 struct thread_data {
 	ctrl_t* ctrl;
 	edge_t* edges;
@@ -33,13 +31,10 @@ void *cpu_only_sim(void *threadarg) {
 	int upper = rtov_upper(my_data->world_rank, my_data->world_size, my_data->num_vertices);
 	int num_labels = upper - offset;
 	int num_edges = my_data->num_edges;
-	int world_size = my_data->world_size;
-	int world_rank = my_data->world_rank;
-	int num_vertices = my_data->num_vertices;
 	edge_t *edges = my_data->edges;
 
 
-	label_t local_labels[MAX_VERTICES/NUM_NODES/2];
+	label_t local_labels[MAX_VERTICES];
 
 	label_t *labels = my_data->labels;
 
@@ -50,7 +45,6 @@ void *cpu_only_sim(void *threadarg) {
 	int iter = 0;
 	while (1) {
 		converged = true;
-		int count = 0;
 		for (int i = 0; i < num_edges; i++) {
 			edge_t e = edges[i];
 			printf("cpu: update from %lu(%lu) to %lu(%lu)\n", e.to, local_labels[e.to - offset], e.from, local_labels[e.from - offset]);
@@ -71,16 +65,10 @@ void *cpu_only_sim(void *threadarg) {
 	}
 
 	printf("cpu: done\n");
+	printf("cpu: iter = %i\n", iter);
 	pthread_exit(NULL);
 }
 
-void labelprop() {
-
-}
-
-#define LABEL_UPDATE_SENT 0
-#define LABEL_UPDATE_WILLSEND 1
-#define LABEL_UPDATE_UNSENT 2
 
 void *cpu_sim(void *threadarg) {
 	struct thread_data *my_data = (struct thread_data *) threadarg;
@@ -95,8 +83,9 @@ void *cpu_sim(void *threadarg) {
 	info_t *input = my_data->input;
 	edge_t *edges = my_data->edges;
 
+	label_t local_labels[MAX_VERTICES];
 
-	label_t local_labels[MAX_VERTICES/NUM_NODES/2];
+	char label_buffer[MAX_VERTICES];
 	char label_updates[MAX_VERTICES];
 
 	for (int i = 0; i < num_labels; i++) {
@@ -117,7 +106,6 @@ void *cpu_sim(void *threadarg) {
 
 			int rto = vtor(e.to, world_size, num_vertices);
 			int rfrom = vtor(e.from, world_size, num_vertices);
-			//printf("rfrom%d(%d) rto%d(%d)\n", rfrom, e.from, rto, e.to);
 			if (rto != world_rank && rfrom == world_rank
 					&& label_updates[e.from - offset] != LABEL_UPDATE_SENT) {
 				info_t info;
@@ -127,12 +115,11 @@ void *cpu_sim(void *threadarg) {
 				input[count++] = info;
 				printf("cpu: send from %lu(%lu) to %lu\n", e.from, info.label, e.to);
 			} else if (rto == world_rank && rfrom == world_rank) {
-				assert(e.from >= offset);
-				assert(e.to >= offset);
+				assert(e.from >= (label_t) offset);
+				assert(e.to >= (label_t) offset);
 
 				printf("cpu: update from %lu(%lu) to %lu(%lu)\n", e.to, local_labels[e.to - offset], e.from, local_labels[e.from - offset]);
 				if (local_labels[e.from - offset] < local_labels[e.to - offset]) {
-
 					local_labels[e.to - offset] = local_labels[e.from - offset];
 					label_updates[e.to - offset] = LABEL_UPDATE_UNSENT;
 					converged = false;
@@ -195,9 +182,9 @@ void *cpu_sim(void *threadarg) {
 
 
 	printf("cpu: done\n");
+	printf("cpu: iter = %i\n", iter);
 	pthread_exit(NULL);
 }
-
 edge_t edges[MAX_EDGES];
 size_t num_edges;
 info_t input[MAX_EDGES];
@@ -213,9 +200,9 @@ label_t labels[MAX_VERTICES];
 
 int main(int argc, char *argv[]) {
 	const char *filename;
-	pthread_t threads[2 * NUM_NODES];
-	struct thread_data my_data[2 * NUM_NODES];
-	ctrl_t ctrl[NUM_NODES];
+	pthread_t threads[2];
+	struct thread_data my_data[2];
+	ctrl_t ctrl[1];
 
 	bool undirected = false;
 	bool cpu_only = false;
